@@ -1,0 +1,331 @@
+---
+title: "Case study: How does a bike-share navigate speedy success?
+"
+author: "Antonín Novotný"
+date: "2024-08-15"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+#Introduction
+
+## Scenario
+You are a junior data analyst working on the marketing analyst team at Cyclistic, a bike-share
+company in Chicago. The director of marketing believes the company’s future success
+depends on maximizing the number of annual memberships. Therefore, your team wants to
+understand how casual riders and annual members use Cyclistic bikes differently. From these
+insights, your team will design a new marketing strategy to convert casual riders into annual
+members. But first, Cyclistic executives must approve your recommendations, so they must be
+backed up with compelling data insights and professional data visualizations.
+
+# Ask
+What is the problem you are trying to solve?
+*	How do annual members and casual riders use Cyclistic bikes differently in order to design marketing strategies aimed at converting causal riders into annual members.
+How can your insights drive business decisions?
+*	With my insights I can help the marketing design new marketing strategies
+What’s the business task?
+*	The purpose is to identify the different Cyclitic bikes usage of the annual members and the casual riders in order to implement a marketing strategy to encourage the casual riders to become annual members.
+
+
+```{r}
+Sys.setlocale("LC_TIME", "en_US.UTF-8")
+
+```
+#Prepare
+
+## About the dataset
+I worked with Cyclistic’s historical trip data to analyze and identify trends. For this project, the data used consists of monthly CSV files from the past 12 months (January 2023 - December 2023). The data has been made available by Motivate International Inc. under this license. There shouldn’t have been any issues with bias or credibility since the company collected their own data as a first party.
+
+##Preapering libraries i will work with
+
+```{r}
+library(tidyverse)  
+library(lubridate)  
+library(ggplot2)  
+library(dplyr) 
+library(tidyr) 
+library(geosphere)
+```
+
+## Read the trip data from January 2023 - December 2023
+```{r}
+tripdata_2023_01 <- read.csv("D:\\Google Analytics\\cycle_data\\202301-divvy-tripdata.csv")
+tripdata_2023_02 <- read.csv("D:\\Google Analytics\\cycle_data\\202302-divvy-tripdata.csv")
+tripdata_2023_03 <- read.csv("D:\\Google Analytics\\cycle_data\\202303-divvy-tripdata.csv")
+tripdata_2023_04 <- read.csv("D:\\Google Analytics\\cycle_data\\202304-divvy-tripdata.csv")
+tripdata_2023_05 <- read.csv("D:\\Google Analytics\\cycle_data\\202305-divvy-tripdata.csv")
+tripdata_2023_06 <- read.csv("D:\\Google Analytics\\cycle_data\\202306-divvy-tripdata.csv")
+tripdata_2023_07 <- read.csv("D:\\Google Analytics\\cycle_data\\202307-divvy-tripdata.csv")
+tripdata_2023_08 <- read.csv("D:\\Google Analytics\\cycle_data\\202308-divvy-tripdata.csv")
+tripdata_2023_09 <- read.csv("D:\\Google Analytics\\cycle_data\\202309-divvy-tripdata.csv")
+tripdata_2023_10 <- read.csv("D:\\Google Analytics\\cycle_data\\202310-divvy-tripdata.csv")
+tripdata_2023_11 <- read.csv("D:\\Google Analytics\\cycle_data\\202311-divvy-tripdata.csv")
+tripdata_2023_12 <- read.csv("D:\\Google Analytics\\cycle_data\\202312-divvy-tripdata.csv")
+```
+
+## Combine all data sets into one
+```{r}
+tripdata_all <- bind_rows(
+  tripdata_2023_01,
+  tripdata_2023_02,
+  tripdata_2023_03,
+  tripdata_2023_04,
+  tripdata_2023_05,
+  tripdata_2023_06,
+  tripdata_2023_07,
+  tripdata_2023_08,
+  tripdata_2023_09,
+  tripdata_2023_10,
+  tripdata_2023_11,
+  tripdata_2023_12
+)
+```
+## Review all trips data
+
+### List of columns names
+```{r}
+names(tripdata_all)
+```
+
+### First 6 rows with data
+```{r}
+head(tripdata_all)
+```
+
+### How many rows are in data frame?
+```{r}
+nrow(tripdata_all)
+```
+
+### List of coluimns and data types
+```{r}
+str(tripdata_all)
+```
+# Cleaning data
+
+## Counting how many "NA" values are in the dataset
+```{r}
+colSums(is.na(tripdata_all))
+```
+
+
+## Removing NA values
+```{r}
+tripdata_all <- drop_na(tripdata_all)
+colSums(is.na(tripdata_all))
+```
+
+## Removing duplicates
+```{r}
+tripdata_2023 <- distinct(tripdata_all)
+```
+
+## Add colums date, month, day and year for better overview
+```{r}
+tripdata_2023$date <- as.Date(tripdata_2023$started_at)
+tripdata_2023$month <- format(as.Date(tripdata_2023$date), "%m")
+tripdata_2023$day <- format(as.Date(tripdata_2023$date), "%d")
+tripdata_2023$year <- format(as.Date(tripdata_2023$date), "%Y")
+tripdata_2023$day_of_week <- format(as.Date(tripdata_2023$date), "%A")
+head(tripdata_2023)
+```
+
+# Convert to POSIXct so it can be calculated
+```{r}
+tripdata_2023$started_at <- as.POSIXct(tripdata_2023$started_at, format="%Y-%m-%d %H:%M:%S")
+tripdata_2023$ended_at <- as.POSIXct(tripdata_2023$ended_at, format="%Y-%m-%d %H:%M:%S")
+```
+
+## Calculating ride length
+```{r}
+tripdata_2023$ride_length <- difftime(tripdata_2023$ended_at, tripdata_2023$started_at)
+class(tripdata_2023$ride_length)
+head(tripdata_2023)
+```
+
+## Removing bad data where ride_length is negative
+```{r}
+tripdata_2023 <- tripdata_2023[!(tripdata_2023$ride_length <= 0),]
+```
+
+## Sorting table to see if i got any negative values
+```{r}
+tripdata_2023 %>% arrange(ride_length) %>% head()
+```
+
+## Sorting the final dataframe by started at
+```{r}
+tripdata_2023 <- tripdata_2023 %>% 
+  arrange(started_at)
+```
+
+# Analyze
+
+## Mean of the ride_length
+```{r}
+mean(tripdata_2023$ride_length)
+```
+## Number of Rides by Month and User Type
+```{r}
+month_rides <- tripdata_2023 %>%
+  mutate(month = factor(month.name[as.numeric(month)], levels = month.name)) %>%
+  group_by(month, member_casual) %>%
+  summarize(row_count = n(), .groups = 'drop') %>%
+  arrange(month)
+```
+
+```{r}
+print(month_rides)
+```
+
+## Lets visualize it
+```{r}
+ggplot(month_rides, aes(x=row_count, y=month, fill=member_casual)) +
+  geom_bar(stat='identity', position='dodge') +
+  geom_text(aes(label=row_count), position=position_dodge(width=0.9), hjust=-0.1) +
+  labs(
+    title = "Number of Rides by Month and User Type",
+    x = "Number of Rides",
+    y = "Month",
+    fill = "User Type"
+  ) +
+  theme_minimal() +
+  scale_y_discrete(limits = rev(levels(month_rides$month)))
+
+```
+Findings:
+  1. Summer is the pak season for both rider types
+  2. Members are dominating in rides
+  
+## Number of Rides by Day and User Type
+```{r}
+day_rides <- tripdata_2023 %>%
+  group_by(day_of_week, member_casual) %>%
+  summarize(row_count = n(), .groups = 'drop') %>%
+  mutate(day_of_week = factor(day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) %>%
+  arrange(day_of_week)
+day_rides
+```
+## Rides per member type per day (visualization)
+```{r}
+ggplot(day_rides, aes(x=row_count, y=day_of_week, fill=member_casual)) +
+  geom_bar(stat='identity', position='dodge') +
+  labs(
+    title = "Number of Rides by Day and User Type",
+    x = "Number of Rides",
+    y = "Day",
+    fill = "User Type"
+  ) +
+  theme_minimal() +
+  scale_y_discrete(limits = rev(levels(day_rides$day_of_week)))
+```
+Findings:
+  1. We can see that members use the bikes mostly on weekdays, where casual riders use the bikes mostly on weekends
+  
+## Ride length depending on rider type
+```{r}
+agg_result <- tripdata_2023 %>%
+  group_by(member_casual, day_of_week) %>%
+  summarize(mean_ride_length = mean(ride_length), .groups = 'drop') %>%
+  rename(Member_Casual = member_casual, Day_of_Week = day_of_week, Mean_Ride_Length = mean_ride_length) %>% 
+  arrange(Day_of_Week)
+agg_result
+```
+```{r}
+ggplot(agg_result, aes(x = Day_of_Week, y = Mean_Ride_Length, fill = Member_Casual)) +
+  geom_bar(stat = 'identity', position = 'dodge') +
+  labs(
+    title = "Average Ride Length by User Type and Day of Week",
+    x = "Day of Week",
+    y = "Average Ride Length (seconds)",
+    fill = "User Type"
+  ) +
+  theme_minimal() +
+  scale_x_discrete(limits = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+tripdata_2023 %>% 
+  group_by(member_casual, month) %>% 
+  summarise(average_ride_lenth = mean(ride_length), .groups = "drop") %>% 
+  arrange(month)
+```
+
+Findings:
+  1. Casual riders consistently have longer trips than membership riders across all days listed
+
+To find out how long each member ride, we need to add new column ride distance
+
+## Creating ride distance column
+```{r}
+tripdata_2023$ride_distance <- distGeo(matrix(c(tripdata_2023$start_lng, tripdata_2023$start_lat), ncol = 2), matrix(c(tripdata_2023$end_lng, tripdata_2023$end_lat), ncol = 2))
+```
+
+## Ride distance by User Type and Day of the week
+```{r}
+day_distance <- tripdata_2023 %>%
+    mutate(day_of_week = factor(day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) %>%
+  group_by(member_casual, day_of_week) %>%
+    summarise(distance_of_ride = mean(ride_distance), .groups = 'drop') %>%
+    arrange(day_of_week)
+day_distance
+```
+## Ride distance by User Type and Month
+```{r}
+month_distance <-
+  tripdata_2023 %>%
+  mutate(month = factor(month.name[as.numeric(month)], levels = month.name)) %>% 
+  group_by(member_casual, month) %>%
+  summarise(distance_of_ride = mean(ride_distance, na.rm = TRUE), .groups = 'drop') %>%
+  arrange(month)
+month_distance
+```
+```{r}
+View(month_distance)
+```
+
+Findings:
+  1.For most months, member riders have slightly higher average ride distances compared to casual riders.
+  2.Casual riders exceed members in terms of ride distance in some months, particularly in May and August.
+  3. Both casual and member riders show a seasonal trend where ride distances peak in the summer months and tend to decrease in the winter months (e.g., November and December).
+  
+# Conclusion
+
+1. Seasonal Patterns:
+ * Summer Peak: Both casual and member riders show increased bike usage during the summer months, indicating this is a peak period for biking.
+ * Winter Decline: Ride distances decrease in the winter months, which may suggest lower biking activity or shorter trips.
+
+2. Rider Types:
+ * Members Dominate Rides: Annual members use the bikes more frequently than casual riders, indicating higher engagement and loyalty.
+ * Weekday vs. Weekend Usage: Members predominantly use bikes on weekdays, while casual riders are more active on weekends.
+ * Trip Duration: Casual riders consistently take longer trips compared to members, which might suggest different usage patterns or purposes.
+
+3. Monthly Ride Distances:
+
+ * Higher Distances for Members in Most Months: Annual members have slightly higher average ride distances for most months, implying a potential preference for longer trips.
+ * Casual Riders in Specific Months: Casual riders exceed members in ride distances in certain months (e.g., May and August), potentially indicating peak activity or special usage patterns
+
+
+# Act
+1. Leverage Summer Peak:
+
+ * Promotions During Peak Season: Introduce special promotions or discounts during the summer months to attract casual riders to consider annual membership.
+ * Summer Challenges or Rewards: Create biking challenges or reward programs for the summer to boost engagement and highlight the benefits of being a member.
+
+2. Targeted Messaging:
+
+ * Weekday Usage Incentives: Since members use bikes mostly on weekdays, offer incentives for casual riders who might want to use bikes for commuting purposes, emphasizing the convenience and value of annual membership.
+ * Weekend Specials: For casual riders who prefer weekends, provide targeted offers or trials to showcase how membership benefits can enhance their weekend biking experience.
+
+3. Highlight Longer Trip Benefits:
+
+ * Promote Membership Advantages: Emphasize the value of longer trips and how an annual membership can provide additional benefits such as savings on extended rides or priority booking for high-demand periods.
+ * Feature Successful Members: Share testimonials or case studies of members who enjoy longer trips and how membership enhances their biking experience.
+
+4. Address Seasonal Trends:
+
+ * Winter Engagement: Develop strategies to keep both casual and annual members engaged during the winter months, such as indoor biking events or incentives for using bikes year-round.
+ * Seasonal Upgrades: Promote annual membership as a way to enjoy uninterrupted access to bikes throughout the year, highlighting benefits during off-peak seasons.
