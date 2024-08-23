@@ -22,9 +22,9 @@ I worked with Cyclistic’s historical trip data to analyze and identify trends.
 # Process
 The large size of the dataset (1.15 GB) made it impractical to use tools such as Microsoft Excel or Google Sheets, I used R for data cleaning and for analysis.
 # Anaylze
-You can find the analysis in R Markdown file for the bike share case study [here](../bike_share_caseStudy_R.Rmd)
+You can find the analysis in R Markdown file for the bike share case study [here](https://github.com/tondanov/Case-study-How-does-a-bike-share-navigate-speedy-success/blob/main/bike_share_caseStudy_R.Rmd)
 # Share
-You can find the visualisation in R Markdown file for the bike share case study [here](../bike_share_caseStudy_R.Rmd)
+You can find the visualisation in R Markdown file for the bike share case study [here](https://github.com/tondanov/Case-study-How-does-a-bike-share-navigate-speedy-success/blob/main/bike_share_caseStudy_R.Rmd)
 # Act
 ### 1.	Leverage Summer Peak:
 *	Promotions During Peak Season: Introduce special promotions or discounts during the summer months to attract casual riders to consider annual membership.
